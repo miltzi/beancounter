@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/btcsuite/btcd/chaincfg"
 )
@@ -47,7 +48,7 @@ func XpubToNetwork(xpub string) Network {
 	case "tpub":
 		return Testnet
 	default:
-		panic(fmt.Sprintf("unknown prefix: %s", xpub))
+		log.Panicf("unknown prefix: %s", xpub)
 	}
 }
 
@@ -64,7 +65,7 @@ func AddressToNetwork(addr string) Network {
 	case '3':
 		return Mainnet // script hash
 	default:
-		panic(fmt.Sprintf("unknown prefix: %s", addr))
+		log.Panicf("unknown prefix: %s", addr)
 	}
 }
 
