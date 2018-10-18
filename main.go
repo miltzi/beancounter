@@ -97,8 +97,7 @@ func doKeytree() {
 	// Check that all the addresses have the same prefix
 	for i := 1; i < *keytreeN; i++ {
 		if xpubs[0][0:4] != xpubs[i][0:4] {
-			fmt.Printf("Prefixes must match: %s %s\n", xpubs[0], xpubs[i])
-			return
+			log.Panicf("Prefixes must match: %s %s", xpubs[0], xpubs[i])
 		}
 	}
 
@@ -144,8 +143,7 @@ func doFindAddr() {
 	// Check that all the addresses have the same prefix
 	for i := 1; i < *findAddrN; i++ {
 		if xpubs[0][0:4] != xpubs[i][0:4] {
-			fmt.Printf("Prefixes must match: %s %s\n", xpubs[0], xpubs[i])
-			return
+			log.Panicf("Prefixes must match: %s %s", xpubs[0], xpubs[i])
 		}
 	}
 	network := XpubToNetwork(xpubs[0])
@@ -164,7 +162,7 @@ func doFindAddr() {
 			}
 		}
 	}
-	fmt.Printf("not found\n")
+	log.Panic("not found")
 }
 
 func doFindBlock() {
@@ -207,6 +205,7 @@ func doComputeBalance() {
 	if *computeBalanceType == "single-address" {
 		fmt.Printf("Enter single address:\n")
 		singleAddress, _ = reader.ReadString('\n')
+		singleAddress = strings.TrimSpace(singleAddress)
 		network = AddressToNetwork(singleAddress)
 	} else {
 		for i := 0; i < *computeBalanceN; i++ {
@@ -229,12 +228,12 @@ func doComputeBalance() {
 	backend, err := computeBalanceBuildBackend(network)
 	PanicOnError(err)
 
-	// If blockHeight is 0, we default to current height - 6.
+	// If blockHeight is 0, we default to current height - 5.
 	if *computeBalanceBlockHeight == 0 {
-		*computeBalanceBlockHeight = backend.ChainHeight() - minConfirmations
+		*computeBalanceBlockHeight = backend.ChainHeight() - minConfirmations + 1
 	}
-	if *computeBalanceBlockHeight > backend.ChainHeight()-minConfirmations {
-		log.Panicf("blockHeight %d is too high (> %d - %d)", *computeBalanceBlockHeight, backend.ChainHeight(), minConfirmations)
+	if *computeBalanceBlockHeight > backend.ChainHeight()-minConfirmations+1 {
+		log.Panicf("blockHeight %d is too high (> %d - %d + 1)", *computeBalanceBlockHeight, backend.ChainHeight(), minConfirmations)
 	}
 	fmt.Printf("Going to compute balance at %d\n", *computeBalanceBlockHeight)
 

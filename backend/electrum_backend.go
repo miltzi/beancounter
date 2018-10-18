@@ -107,7 +107,7 @@ func NewElectrumBackend(addr, port string, network utils.Network) (*ElectrumBack
 
 	// Connect to a node and handle requests
 	if err := eb.addNode(addr, port, network); err != nil {
-		fmt.Printf("failed to connect to initial node: %+v", err)
+		log.Printf("failed to connect to initial node: %+v", err)
 		return nil, err
 	}
 
@@ -181,6 +181,7 @@ func (eb *ElectrumBackend) ChainHeight() uint32 {
 func (eb *ElectrumBackend) addNode(addr, port string, network utils.Network) error {
 	ident := electrum.NodeIdent(addr, port)
 
+	// note: this code contains a TOCTOU bug. We risk connecting to the same node multiple times.
 	eb.nodeMu.RLock()
 	_, existsGood := eb.nodes[ident]
 	_, existsBad := eb.blacklistedNodes[ident]
@@ -443,7 +444,7 @@ func (eb *ElectrumBackend) cacheTxs(txs []*electrum.Transaction) {
 	for _, tx := range txs {
 		height, exists := eb.transactions[tx.Hash]
 		if exists && (height != int64(tx.Height)) {
-			log.Panicf("inconsistent cache: %s %d != %d", tx.Hash, height, tx.Height)
+			log.Panicf("inconsistent transactions cache: %s %d != %d", tx.Hash, height, tx.Height)
 		}
 		eb.transactions[tx.Hash] = int64(tx.Height)
 	}
@@ -495,19 +496,19 @@ func (eb *ElectrumBackend) findPeers() {
 
 func (eb *ElectrumBackend) addPeer(peer electrum.Peer) {
 	if strings.HasSuffix(peer.Host, ".onion") {
-		log.Printf("skipping %s because of .onion\n", peer.Host)
+		log.Printf("skipping %s because of .onion", peer.Host)
 		return
 	}
 	err := checkVersion(peer.Version)
 	if err != nil {
-		log.Printf("skipping %s because of protocol version %s\n", peer.Host, peer.Version)
+		log.Printf("skipping %s because of protocol version %s", peer.Host, peer.Version)
 		return
 	}
 	for _, feature := range peer.Features {
 		if strings.HasPrefix(feature, "t") {
 			go func(addr, feature string, network utils.Network) {
 				if err := eb.addNode(addr, feature, network); err != nil {
-					log.Printf("error on addNode: %+v\n", err)
+					log.Printf("error on addNode: %+v", err)
 				}
 			}(peer.IP, feature, eb.network)
 			return
@@ -517,11 +518,11 @@ func (eb *ElectrumBackend) addPeer(peer electrum.Peer) {
 		if strings.HasPrefix(feature, "s") {
 			go func(addr, feature string, network utils.Network) {
 				if err := eb.addNode(addr, feature, network); err != nil {
-					log.Printf("error on addNode: %+v\n", err)
+					log.Printf("error on addNode: %+v", err)
 				}
 			}(peer.IP, feature, eb.network)
 			return
 		}
 	}
-	log.Printf("skipping %s because of feature mismatch: %+v\n", peer, peer.Features)
+	log.Printf("skipping %s because of feature mismatch: %+v", peer, peer.Features)
 }
